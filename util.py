@@ -82,4 +82,4 @@ def blur(img, k=5):
 
 def resize(I, scale):
     return cv.resize(I, (
-        np.round(I.shape[0] * scale).astype("int"), np.round(I.shape[1] * scale).astype("int")))
+        np.round(I.shape[1] * scale).astype("int"), np.round(I.shape[0] * scale).astype("int")))
