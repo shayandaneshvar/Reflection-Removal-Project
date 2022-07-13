@@ -1,8 +1,4 @@
-import cv2 as cv
-import numpy as np
-from tensorflow.keras.layers import Input, Conv2D, Activation, Add, Subtract, Conv2DTranspose
-from tensorflow.keras.models import Model
-from tensorflow.python.keras.models import load_model
+from tensorflow.keras.layers import Conv2DTranspose
 
 import util
 
@@ -45,33 +41,46 @@ class ReflectionRemovalEncoderDecoder():
         return self.model.predict(batch)[0]
 
     def train(self, all_image_files, reflection_files, save_address, epochs=5,
-              batch_size=32):
+              batch_size=64):
         image_files = all_image_files[0:672]  # last 29 images for test and eval
         refs = [cv.imread(ref_file) / 255 for ref_file in reflection_files]
-        for epoch in range(epochs // 5):
-            for i in range(0, 4, 2):
+        for epoch in range(0, epochs // 5):
+            j = 0
+            # if epoch == 2 and j == 0:
+            #     j = 200
+
+            for i in range(0, len(image_files), 4):
                 print(f"i is {i} at epoch {epoch}")
                 I0 = cv.resize(cv.imread(image_files[i]),
                                (self.input_shape[0], self.input_shape[1])) / 255
                 I1 = cv.resize(cv.imread(image_files[i + 1]),
                                (self.input_shape[0], self.input_shape[1])) / 255
-                x1, y1 = util.generate_batch(I0, refs, batch_size // 2)
-                x2, y2 = util.generate_batch(I1, refs, batch_size // 2)
-                x = np.array(x1 + x2, "float32").reshape((-1,
-                                                          self.input_shape[1],
-                                                          self.input_shape[0],
-                                                          self.input_shape[2]))
-                y = np.array(y1 + y2, "float32").reshape((-1,
-                                                          self.input_shape[1],
-                                                          self.input_shape[0],
-                                                          self.input_shape[2]))
-                self.model.fit(x, y, epochs=5, batch_size=32,)
+                x1, y1 = util.generate_batch(I0, refs, batch_size // 4)
+                x2, y2 = util.generate_batch(I1, refs, batch_size // 4)
+                I2 = cv.resize(cv.imread(image_files[i + 2]),
+                               (self.input_shape[0], self.input_shape[1])) / 255
+                x3, y3 = util.generate_batch(I2, refs, batch_size // 4)
+                I3 = cv.resize(cv.imread(image_files[i + 2]),
+                               (self.input_shape[0], self.input_shape[1])) / 255
+                x4, y4 = util.generate_batch(I3, refs, batch_size // 4)
+
+                x = np.array(x1 + x2 + x3 + x4, "float32").reshape(
+                    (-1,
+                     self.input_shape[1],
+                     self.input_shape[0],
+                     self.input_shape[2]))
+                y = np.array(y1 + y2 + y3 + y4, "float32").reshape(
+                    (-1,
+                     self.input_shape[1],
+                     self.input_shape[0],
+                     self.input_shape[2]))
+                self.model.fit(x, y, epochs=20, batch_size=32)
+                if i != 0 and i % 100 == 0:
+                    self.save_model(save_address + f"/temp{epoch}-{i}")
+
             self.save_model(save_address + "/model" + str(epoch))
         self.save_model(save_address + "/model")
         # print(self.evaluate(all_image_files, refs))
-
-    import cv2 as cv
-import numpy as np
 
 
 def rotate_image(image, angle):
@@ -127,8 +136,10 @@ def add_reflection(I, refs, ref_range=(0.5, 1.5), max_ref_count=6,
         refl = resize(refl, scale=scl)
         refl = random_rotate_and_flip(refl)
         refl = blur(refl)
-        randX = np.floor((end[0] - start[0]) * np.random.random() + start[0]).astype("int")
-        randY = np.floor((end[1] - start[1]) * np.random.random() + start[1]).astype("int")
+        randX = np.floor(
+            (end[0] - start[0]) * np.random.random() + start[0]).astype("int")
+        randY = np.floor(
+            (end[1] - start[1]) * np.random.random() + start[1]).astype("int")
         w = (weight_range[1] - weight_range[0]) * np.random.random() + \
             weight_range[0]
         replace_image(I, refl, (randX, randY), w)
@@ -154,7 +165,8 @@ def blur(img, k=5):
 
 def resize(I, scale):
     return cv.resize(I, (
-        np.round(I.shape[1] * scale).astype("int"), np.round(I.shape[0] * scale).astype("int")))
+        np.round(I.shape[1] * scale).astype("int"),
+        np.round(I.shape[0] * scale).astype("int")))
 
 
 import cv2 as cv
@@ -261,40 +273,52 @@ class ReflectionRemovalEncoderDecoder():
         l3 = Conv2D(filters=32, kernel_size=5, padding="same", name="cd6")(l3)
         l3 = Activation("relu", name="ad6")(l3)
         # up sampling
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu1")(l3)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu1")(l3)
         up = Activation("relu", name="au1")(up)
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu2")(up)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu2")(up)
         up = Activation("relu", name="au2")(up)
 
         up = Add(name="add1")([up, l2])
 
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu3")(up)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu3")(up)
         up = Activation("relu", name="au3")(up)
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu4")(up)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu4")(up)
         up = Activation("relu", name="au4")(up)
 
         up = Add(name="add2")([up, l1])
 
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu5")(up)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu5")(up)
         up = Activation("relu", name="au5")(up)
-        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="cu6")(up)
+        up = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                             name="cu6")(up)
         up = Subtract(name="sub1")([x, up])
         up = Activation("relu", name="au6")(up)
 
         # Transmission Layer Perfection
-        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="ct1")(up)
+        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                              name="ct1")(up)
         out = Activation("relu", name="at1")(out)
-        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="ct2")(out)
+        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                              name="ct2")(out)
         out = Activation("relu", name="at2")(out)
 
-        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="ct3")(out)
+        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                              name="ct3")(out)
         out = Activation("relu", name="at3")(out)
-        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same", name="ct4")(out)
+        out = Conv2DTranspose(filters=32, kernel_size=5, padding="same",
+                              name="ct4")(out)
         out = Activation("relu", name="at4")(out)
 
-        out = Conv2DTranspose(filters=32, kernel_size=9, padding="same", name="ct5")(out)
+        out = Conv2DTranspose(filters=32, kernel_size=9, padding="same",
+                              name="ct5")(out)
         out = Activation("relu", name="at5")(out)
-        out = Conv2DTranspose(filters=3, kernel_size=9, padding="same", name="ct6")(out)
+        out = Conv2DTranspose(filters=3, kernel_size=9, padding="same",
+                              name="ct6")(out)
         out = Activation("relu", name="at6out")(out)
         model = Model(inputs, out, name="EncoderDecoderReflectionRemover")
         model.summary()
