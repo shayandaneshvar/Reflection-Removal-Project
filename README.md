@@ -19,6 +19,6 @@ Reflection Removal, U-Net, Single Image Reflection Removal
 
 <a href="https://shayandaneshvar.ir/#bsc-thesis"> See it on my page!</a>
 
-Visualized Summary: (Sorry I am busy, I try to add all the details here later. I have attached the Persian Thesis File which You can take a look at as well! - see bsc-thesis.pdf)
+Visualized Summary: (Sorry I am busy, I try to add all the details here later. I have attached the Persian Thesis File which You can take a look at as well! - see <a href="https://github.com/shayandaneshvar/Reflection-Removal-Project/blob/master/BSc%20Thesis.pdf" >Bsc Thesis.pdf</a> (60 pages and the english abstract can be found at the end! (References too obviously!)))
 
 <img src="https://shayandaneshvar.ir/images/bsc-thesis.jpg" alt="1" >
